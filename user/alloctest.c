@@ -106,6 +106,6 @@ int
 main(int argc, char *argv[])
 {
   test0();
-  test1();
+  //test1();
   exit(0);
 }
