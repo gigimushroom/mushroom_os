@@ -82,11 +82,11 @@ main(int argc, char *argv[])
 {
   if(argc != 3){
     printf("Usage: find . b\n");
-    exit();
+    exit(1);
   }
   
   ls(argv[1], argv[2]);
-  exit();
+  exit(1);
 }
 
 

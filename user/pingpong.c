@@ -17,10 +17,10 @@ main(int argc, char *argv[])
     printf("Thread id %d: received ping\n", getpid());
   } 
   else {
-    wait();
+    wait(0);
     read(p[0], buf, 4);
     printf("Thread id %d: received pong\n", getpid());
   }
 
-  exit();
+  exit(1);
 }

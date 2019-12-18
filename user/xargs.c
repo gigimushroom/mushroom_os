@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
 {
   if (argc < 2) {
       printf("xargs cmd 123");
-      exit();
+      exit(1);
   }
   
   char cmd[10];
@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
   while (1) {
     int n = read(0, ch, sizeof(ch));
     if (n <= 0) {
-      exit();
+      exit(1);
     }
 
     if (ch[0] == '\n') {
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
           printf("exec failed!\n");
       }
 
-      wait();
+      wait(0);
       
       // Clear the buffer
       row = 0;
@@ -88,5 +88,5 @@ int main(int argc, char *argv[])
       row++;
     }
   }
-  exit();
+  exit(1);
 }

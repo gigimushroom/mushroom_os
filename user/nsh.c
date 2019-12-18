@@ -324,15 +324,15 @@ void runcmd(struct cmd *cmd) {
       }
       close(p[0]);
       close(p[1]);
-      wait();
-      wait();
+      wait(0);
+      wait(0);
       break;
     case REDIR:
       rc = (struct redircmd *) cmd;
       close(rc->fd);
       if(open(rc->file, rc->mode) < 0){
         fprintf(2, "open %s failed\n", rc->file);
-        exit();
+        exit(1);
       }
       runcmd(rc->cmd);
       break;
@@ -372,8 +372,26 @@ int main(void)
       }
       if (fork() == 0)
         runcmd(parsecmd(buf));
-      wait();
+      wait(0);
     }
     
-    exit();
+    exit(1);
 }
+
+
+/*
+STATUS
+$ testsh nsh
+simple echo: PASS
+simple grep: PASS
+two commands: PASS
+output redirection: PASS
+input redirection: PASS
+both redirections: testsh: saw expected output, but too much else as well
+FAIL
+simple pipe: PASS
+pipe and redirects: PASS
+lots of commands: FAIL
+
+failed some tests
+*/

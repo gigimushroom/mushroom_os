@@ -60,7 +60,7 @@ void exec_pipe(int fd)
         close(p[1]);
         close(p[0]);
         close(fd);
-        wait();
+        wait(0);
     }
 }
 
@@ -78,7 +78,7 @@ main(int argc, char *argv[])
   exec_pipe(p[0]);
   close(p[0]);
   
-  exit();
+  exit(1);
 }
 
 /*
