@@ -32,15 +32,20 @@ filealloc(void)
   struct file *f;
 
   acquire(&ftable.lock);
-  for(f = ftable.file; f < ftable.file + NFILE; f++){
-    if(f->ref == 0){
-      f->ref = 1;
-      release(&ftable.lock);
-      return f;
-    }
-  }
+  // for(f = ftable.file; f < ftable.file + NFILE; f++){
+  //   if(f->ref == 0){
+  //     f->ref = 1;
+  //     release(&ftable.lock);
+  //     return f;
+  //   }
+  // }
+  
+  char *p = bd_malloc(sizeof(ftable.file));
+  f = (struct file*) p;
+  f->ref = 1;
+  
   release(&ftable.lock);
-  return 0;
+  return f;
 }
 
 // Increment ref count for file f.
