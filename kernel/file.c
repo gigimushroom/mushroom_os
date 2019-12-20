@@ -43,7 +43,6 @@ filealloc(void)
   char *p = bd_malloc(sizeof(ftable.file));
   f = (struct file*) p;
   f->ref = 1;
-  
   release(&ftable.lock);
   return f;
 }
@@ -77,7 +76,10 @@ fileclose(struct file *f)
   f->ref = 0;
   f->type = FD_NONE;
   release(&ftable.lock);
-
+  
+  // Release file memory 
+  bd_free(f);
+  
   if(ff.type == FD_PIPE){
     pipeclose(ff.pipe, ff.writable);
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
