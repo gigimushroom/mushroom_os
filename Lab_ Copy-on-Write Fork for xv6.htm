@@ -1,0 +1,149 @@
+
+<!-- saved from url=(0051)https://pdos.csail.mit.edu/6.828/2019/labs/cow.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Lab: Copy-on-Write Fork for xv6</title>
+<link rel="stylesheet" href="./Lab_ Copy-on-Write Fork for xv6_files/labs.css" type="text/css">
+</head>
+<body>
+
+<h1>Lab: Copy-on-Write Fork for xv6</h1>
+
+<p>
+</p><div class="required">
+Your task is to implement copy-on-write fork in the xv6 kernel. You are
+done if your modified kernel executes both the cowtest and usertests
+programs successfully.
+</div>
+
+<p>
+</p><pre>$ <kbd>git fetch</kbd>
+$ <kbd>git checkout cow</kbd>
+</pre>
+
+<h2>The problem</h2>
+
+The fork() system call in xv6 copies all of the parent process's
+user-space memory into the child. If the parent is large, copying can
+take a long time. In addition, the copies often waste memory; in many
+cases neither the parent nor the child modifies a page, so that in
+principle they could share the same physical memory. The inefficiency
+is particularly clear if the child calls exec(), since exec() will throw
+away the copied pages, probably without using most of them.
+On the other hand, if both parent and child use a page, and one or both
+writes it,
+a copy is truly needed.
+
+<h2>The solution</h2>
+
+The goal of copy-on-write (COW) fork() is to defer allocating and
+copying physical memory pages for the child until the copies are actually
+needed, if ever.
+
+<p>
+COW fork() creates just a pagetable for the child, with PTEs for user
+memory pointing to the parent's physical pages. COW fork() marks all
+the user PTEs in both parent and child as not writable. When either
+process tries to write one of these COW pages, the CPU will force a
+page fault. The kernel page-fault handler detects this case, allocates
+a page of physical memory for the faulting process, copies the
+original page into the new page, and modifies the relevant PTE in the
+faulting process to refer to the new page, this time with the PTE
+marked writeable. When the page fault handler returns, the user
+process will be able to write its copy of the page.
+
+</p><p>
+COW fork() makes freeing of the physical pages that implement user
+memory a little trickier. A given physical page may be referred to by
+multiple processes' page tables, and should be freed only when the last
+reference disappears.
+
+</p><h2>The cowtest program</h2>
+
+To help you test your implementation, we've provided an xv6 program
+called cowtest (source in user/cowtest.c). cowtest runs various tests, but
+even the first will fail on unmodified xv6. Thus, initially, you
+will see:
+
+<pre>$ <kbd>cowtest</kbd>
+simple: fork() failed
+$ 
+</pre>
+
+The "simple" test allocates more than half of available physical
+memory, and then fork()s. The fork fails because there is not enough
+free physical memory to give the child a complete copy of the parent.
+
+<p>
+When you are done, your kernel should be able to run both cowtest and
+usertests. That is:
+
+</p><pre>$ <kbd>cowtest</kbd>
+simple: ok
+simple: ok
+three: zombie!
+ok
+three: zombie!
+ok
+three: zombie!
+ok
+file: ok
+ALL COW TESTS PASSED
+$ <kbd>usertests</kbd>
+...
+ALL TESTS PASSED
+$
+</pre>
+
+<h2>Hints</h2>
+
+The lazy page allocation lab has likely made you familiar with much of
+the xv6 kernel code that's relevant for copy-on-write. However, you
+should not base this lab on your lazy allocation solution; instead,
+please start with a fresh copy of xv6 as directed above.
+
+<p>
+Here's one reasonable plan of attack. Modify uvmcopy() to map the
+parent's physical pages into the child, instead of allocating new
+pages, and clear PTE_W in the PTEs of both child and parent.
+Modify usertrap() to recognize page faults. When a page-fault
+occurs on a
+COW page, allocate a new page with kalloc(), copy the old page to
+the new page, and install the new page in the PTE with PTE_W set.
+Next, ensure that each physical page is freed when the last PTE
+reference to it goes away (but not before!), perhaps by implementing
+reference counts in kalloc.c. Finally, modify copyout() to use the
+same scheme as page faults when it encounters a COW page.
+
+</p><p>
+It may be useful to have a way to record, for each PTE, whether it is
+a COW mapping. You can use the RSW (reserved for software) bits in
+the RISC-V PTE for this.
+
+</p><p>
+<tt>usertests</tt> explores more situations than <tt>cowtest</tt>,
+so don't forget to check that all tests pass for both.
+
+</p><p>Some helpful macros and definitions for page table flags are at the
+end of the file kernel/riscv.h.
+
+</p><h2>Time spent</h2>
+
+Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
+number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
+<tt>git commit</tt> the file.
+
+<p>
+</p><div class="warning">
+<ul>
+  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
+  <li>Commit any modified source code before running `make handin`</li>
+  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2019/handin.py/">https://6828.scripts.mit.edu/2019/handin.py/</a> </li>
+</ul>
+</div>
+
+<p><b>This completes the lab.</b> Commit your changes and type make
+handin in the lab directory to hand in your lab.
+
+
+
+</p></body></html>

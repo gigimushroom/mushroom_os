@@ -1,0 +1,377 @@
+
+<!-- saved from url=(0055)https://pdos.csail.mit.edu/6.828/2019/labs/syscall.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Lab: user-level threads and alarm</title>
+<link rel="stylesheet" href="./Lab_ user-level threads and alarm_files/labs.css" type="text/css">
+</head>
+<body>
+
+<h1>Lab: user-level threads and alarm</h1>
+
+<p>This lab will familiarize you with how state is saved and
+restored in context switches and system calls.
+You will implement switching between threads in a
+user-level threads package, and implement an "alarm" feature
+that delivers interrupt-like events to programs.
+
+</p><p>Before writing code, you should make sure you have read "Chapter 4:
+  Traps and device drivers" and "Chapter 6: Scheduling" from
+  the <a href="https://pdos.csail.mit.edu/6.828/2019/xv6/book-riscv-rev0.pdf">xv6 book</a> and studied
+  the corresponding code.
+
+  </p><pre>  $ <kbd>git fetch</kbd>
+  $ <kbd>git checkout syscall</kbd>
+  </pre>
+
+<h2>Warmup: RISC-V assembly</h2>
+
+<p>For this lab it will be important to understand a bit of RISC-V
+  assembly. There is a file user/call.c in your xv6 repo.  <kbd>make
+  fs.img</kbd> builds a user program call and a readable assembly
+  version of the program in user/call.asm.
+
+</p><p>Read the code in call.asm for the functions g, f, and main.
+  The instruction
+  manual for RISC-V is in the doc directory (doc/riscv-spec-v2.2.pdf).
+  Here are some questions that you should answer (store the answers in
+  a file answers-syscall.txt):
+
+  </p><div class="question">
+    Which registers contain arguments to functions?  For example, which
+    register holds 13 in main's call to <tt>printf</tt>?
+  </div>
+  
+  <div class="question">
+    Where is the function call to <tt>f</tt>
+    from main? Where is the call to <tt>g</tt>?  (Hint: the
+    compiler may inline functions.)
+  </div>
+  
+  <div class="question">
+    At what address is the
+    function <tt>printf</tt> located?
+  </div>
+
+  <div class="question">
+    What value is in the register <tt>ra</tt>
+    just after the <tt>jalr</tt> to <tt>printf</tt> in <tt>main</tt>?
+  </div>
+
+<h2>Uthread: switching between threads</h2>
+
+<p>In this exercise you will design the context switch mechanism for a
+  user-level threading system, and then implement it.  To get you
+  started, your xv6 has two files user/uthread.c and
+  user/uthread_switch.S, and a rule in the Makefile to build a uthread
+  program.  uthread.c contains most of a user-level threading package,
+  and code for three simple test threads.
+  The threading package is missing some of the code to create a thread and to switch
+  between threads.
+
+  </p><div class="required">
+<p>
+Your job is to come up with a plan to create threads and save/restore
+registers to switch between threads, and implement that plan.
+</p></div>
+
+Once you've finished, you should see the following output when you
+run <tt>uthread</tt> on xv6 (the three threads might start in
+a different order):
+
+<pre>~/classes/6828/xv6$ <kbd>make qemu</kbd>
+...
+$ <kbd>uthread</kbd>
+thread_a started
+thread_b started
+thread_c started
+thread_c 0
+thread_a 0
+thread_b 0
+thread_c 1
+thread_a 1
+thread_b 1
+...
+thread_c 99
+thread_a 99
+thread_b 99
+thread_c: exit after 100
+thread_a: exit after 100
+thread_b: exit after 100
+thread_schedule: no runnable threads
+$
+</pre>
+
+<p>
+This output comes from the three test threads, each of which has
+a loop that prints a line and then yields the CPU to the
+other threads.
+</p><p>
+
+</p><p>
+At this point, however, with no context switch code, you'll see
+no output.
+</p><p>
+
+</p><p>You should complete <tt>thread_create</tt> to create a properly
+  initialized thread so that when the scheduler switches to that
+  thread for the first time, <tt>thread_switch</tt> returns to the
+  function passed as argument <tt>func</tt>, running on the thread's stack.  You will
+  have to decide where to save/restore registers.  Several
+  solutions are possible. You are allowed to modify struct thread.
+  You'll need to add a call to <tt>thread_switch</tt> in <tt>thread_schedule</tt>;
+  you can pass whatever arguments you need to <tt>thread_switch</tt>,
+  but the intent is to switch from thread <tt>t</tt> to the
+  <tt>next_thread</tt>.
+  
+</p><p>Some hints:
+  </p><ul>
+    <li> <tt>thread_switch</tt> needs to save/restore only
+the callee-save registers. Why?
+    </li><li> You can add fields to <tt>struct thread</tt> into which to save registers.
+    </li><li> You can see the assembly code for uthread in user/uthread.asm, which
+may be handy for debugging.
+</li><li>To test your code it might be helpful to single step through your
+<tt>thread_switch</tt> using <tt>riscv64-linux-gnu-gdb</tt>.  You can
+get started in this way:
+
+<pre>(gdb) file user/_uthread
+Reading symbols from user/_uthread...
+(gdb) b thread.c:60
+
+</pre>
+
+<p>This sets a breakpoint at a specified line in thread.c.  The
+breakpoint may (or may not) be triggered before you even run
+<tt>uthread</tt>. How could that happen?
+
+</p><p>Once your xv6 shell runs, type "uthread", and gdb will break at line
+<tt>thread_switch</tt>.  Now you can type commands like the following to inspect
+the state of <tt>uthread</tt>:
+
+</p><pre>  (gdb) p/x *next_thread
+</pre>
+
+With "x", you can examine the content of a memory location:
+<pre>  (gdb) x/x next_thread-&gt;stack
+</pre>
+
+<p>You can single step assembly instructions using:
+</p><pre>   (gdb) si  
+</pre>
+
+<p>On-line documentation for gdb is <a href="https://sourceware.org/gdb/current/onlinedocs/gdb/">here</a>.
+
+</p></li></ul>
+
+<h2>Alarm</h2>
+
+<div class="required">
+<p>
+In this exercise you'll add a feature to xv6 that periodically alerts
+a process as it uses CPU time. This might be useful for compute-bound
+processes that want to limit how much CPU time they chew up, or for
+processes that want to compute but also want to take some periodic
+action. More generally, you'll be implementing a primitive form of
+user-level interrupt/fault handlers; you could use something similar
+to handle page faults in the application, for example.  Your solution
+is correct if it passes alarmtest and usertests.
+</p></div>
+
+<p>
+You should add a new <tt>sigalarm(interval, handler)</tt> system call.
+If an application calls <tt>sigalarm(n, fn)</tt>, then after every
+<tt>n</tt> "ticks" of CPU time that the program consumes, the kernel
+should cause application function
+<tt>fn</tt> to be called. When <tt>fn</tt> returns, the application
+should resume where it left off. A tick is a fairly arbitrary unit of
+time in xv6, determined by how often a hardware timer generates
+interrupts.
+
+</p><p>
+You'll find a file <tt>user/alarmtest.c</tt> in your xv6
+repository. Add it to the Makefile. It won't compile correctly
+until you've added <tt>sigalarm</tt> and <tt>sigreturn</tt>
+system calls (see below).
+
+</p><p>
+<tt>alarmtest</tt> calls <tt>sigalarm(2, periodic)</tt>
+in <tt>test0</tt> to ask the kernel to force a call
+to <tt>periodic()</tt> every 2 ticks, and then spins for a while.  You
+can see the assembly code for alarmtest in user/alarmtest.asm, which
+may be handy for debugging.  Your solution is correct when
+<tt>alarmtest</tt> produces output like this and usertests also runs
+correctly:
+
+</p><pre>$ <kbd>alarmtest</kbd>
+test0 start
+......................................alarm!
+test0 passed
+test1 start
+..alarm!
+..alarm!
+..alarm!
+.alarm!
+..alarm!
+..alarm!
+..alarm!
+..alarm!
+..alarm!
+..alarm!
+test1 passed
+$ <kbd>usertests</kbd>
+...
+ALL TESTS PASSED
+$
+</pre>
+
+<p>The first challenge is to arrange that the handler is invoked
+  when the process's alarm interval expires.  You'll need to modify
+  usertrap() in kernel/trap.c so that when a
+  process's alarm interval expires, the process executes
+  the handler. How can you do that?  You will need to understand 
+  how system calls work (i.e., the code in kernel/trampoline.S
+  and kernel/trap.c). Which register contains the user-space
+  instruction address to which system calls return?
+
+</p><p>Your solution will be only a few lines of code, but it may be tricky to
+  get it right.
+We'll test your code with the version of alarmtest.c in the original
+repository; if you modify alarmtest.c, make sure your kernel changes
+cause the original alarmtest to pass the tests.
+
+</p><h3>test0: invoke handler</h3>
+
+<p>Get started by modifying the kernel to jump to the alarm handler in
+user space, which will cause test0 to print "alarm!". Don't worry yet
+what happens after the "alarm!" output; it's OK for now if your
+program crashes after printing "alarm!". Here are some hints:
+
+</p><ul>
+
+<li>You'll need to modify the Makefile to cause <tt>alarmtest.c</tt>
+to be compiled as an xv6 user program.
+
+</li><li>The right declarations to put in <tt>user/user.h</tt> are:
+<pre>    int sigalarm(int ticks, void (*handler)());
+    int sigreturn(void);
+</pre>
+
+</li><li>Update user/usys.pl (which generates user/usys.S),
+    kernel/syscall.h, and kernel/syscall.c 
+   to allow <tt>alarmtest</tt> to invoke the sigalarm and
+   sigreturn system calls.
+
+</li><li>For now, your <tt>sys_sigreturn</tt> should just return zero.
+
+</li><li>Your <tt>sys_sigalarm()</tt> should store the alarm interval and
+the pointer to the handler function in new fields in the <tt>proc</tt>
+structure (in <tt>kernel/proc.h</tt>).
+
+</li><li>You'll need to keep track of how many ticks have passed since the
+last call (or are left until the next call) to a process's alarm
+handler; you'll need a new field in <tt>struct&nbsp;proc</tt> for this
+too.  You can initialize <tt>proc</tt> fields in <tt>allocproc()</tt>
+in <tt>proc.c</tt>.
+
+</li><li>Every tick, the hardware clock forces an interrupt, which is handled
+in <tt>usertrap()</tt>; you should add some code here.
+
+</li><li>You only want to manipulate a process's alarm ticks if there's a 
+  timer interrupt; you want something like
+<pre>    if(which_dev == 2) ...
+</pre>
+
+</li><li>Only invoke the alarm function if the process has a
+  timer outstanding.  Note that the address of the user's alarm
+  function might be 0 (e.g., in alarmtest.asm, <tt>periodic</tt> is at
+  address 0).
+
+</li><li>It will be easier to look at traps with gdb if you tell qemu to
+use only one CPU, which you can do by running
+<pre>    make CPUS=1 qemu-gdb
+</pre>
+
+</li><li>You've succeeded if alarmtest prints "alarm!".
+
+</li></ul>
+
+<h3>test1(): resume interrupted code</h3>
+
+Chances are that alarmtest crashes in test0 or test1 after it prints
+"alarm!", or that alarmtest (eventually) prints "test1 failed",
+or that alarmtest exits without printing "test1 passed".
+To fix this, you must
+ensure that, when the alarm handler is done,
+control returns to
+the instruction at which the user program was originally
+interrupted by the timer interrupt. You must ensure that
+the register contents are restored to the values they held
+at the time of the interrupt, so that the user program
+can continue undisturbed after the alarm.
+Finally,
+you should "re-arm" the alarm counter after each time it goes
+off, so that the handler is called periodically.
+
+<p>As a starting point, we've made a design decision for you:
+user alarm handlers are required to call the <tt>sigreturn</tt>
+system call when they have finished. Have a look at
+<tt>periodic</tt> in <tt>alarmtest.c</tt> for an example.
+This means that you can add code to <tt>usertrap</tt> and
+<tt>sys_sigreturn</tt> that cooperate to cause the user
+process to resume properly after it has handled the alarm.
+
+
+</p><p>
+  Some hints:
+  </p><ul>
+    <li>Your solution will require you to save and restore
+      registers---what registers do you need to save and restore to resume
+      the interrupted code correctly? (Hint: it will be many).
+    </li><li>Have <tt>usertrap</tt> save enough state in
+      <tt>struct proc</tt> when the timer goes off
+      that <tt>sigreturn</tt> can correctly return to the
+      interrupted user code.
+
+    </li><li>Prevent re-entrant calls to the handler----if a handler hasn't
+      returned yet, the kernel shouldn't call it again.
+  </li></ul>
+  
+<p>Once you pass <tt>test0</tt> and <tt>test1</tt>, run usertests to
+  make sure you didn't break any other parts of the kernel.
+
+  
+</p><p><b>This completes the lab.</b> Make sure you pass all of the make
+grade tests and don't forget to write up your answers to the questions
+in answers-syscall.txt. Commit your changes (including adding
+answers-syscall.txt) and type make handin in the lab directory to hand in
+your lab.
+
+</p><h3>Optional challenges for uthread</h3>
+
+<p>The user-level thread package interacts badly with the operating system in
+several ways.  For example, if one user-level thread blocks in a system call,
+another user-level thread won't run, because the user-level threads scheduler
+doesn't know that one of its threads has been descheduled by the xv6 scheduler.  As
+another example, two user-level threads will not run concurrently on different
+cores, because the xv6 scheduler isn't aware that there are multiple
+threads that could run in parallel.  Note that if two user-level threads were to
+run truly in parallel, this implementation won't work because of several races
+(e.g., two threads on different processors could call <tt>thread_schedule</tt>
+concurrently, select the same runnable thread, and both run it on different
+processors.)
+
+</p><p>There are several ways of addressing these problems.  One is
+ using <a href="http://en.wikipedia.org/wiki/Scheduler_activations">scheduler
+ activations</a> and another is to use one kernel thread per
+ user-level thread (as Linux kernels do).  Implement one of these ways
+ in xv6.  This is not easy to get right; for example, you will need to
+ implement TLB shootdown when updating a page table for a
+ multithreaded user process.
+
+</p><p>Add locks, condition variables, barriers,
+etc. to your thread package.
+  
+
+
+
+</p></body></html>
