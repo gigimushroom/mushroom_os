@@ -451,3 +451,74 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+char* print_prefix(int level) {
+  if (level == 2) {
+    return "..";
+  } 
+  else if (level == 1) {
+    return "....";
+  }
+  return "......";
+}
+
+void vmprint_helper(pagetable_t pagetable, char* prefix, int level) {
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int k = 0; k < 512; k++) {
+    pte_t pte = pagetable[k];
+    if(pte & PTE_V) {
+      printf("%s%d: pte %p pa %p\n", prefix, k, pte, PTE2PA(pte));
+      int next_level = level - 1;
+      if (level > 0) {
+        uint64 child = PTE2PA(pte);
+        pagetable_t pt = (pagetable_t)child;
+        vmprint_helper(pt, print_prefix(next_level), next_level);
+      }
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable)
+{
+  printf("page table %p\n", pagetable);
+  vmprint_helper(pagetable, "..", 2);
+}
+
+/*
+page table 0x0000000087f6e000
+ ..0: pte 0x0000000021fda801 pa 0x0000000087f6a000
+ .. ..0: pte 0x0000000021fda401 pa 0x0000000087f69000
+ .. .. ..0: pte 0x0000000021fdac1f pa 0x0000000087f6b000
+ .. .. ..1: pte 0x0000000021fda00f pa 0x0000000087f68000
+ .. .. ..2: pte 0x0000000021fd9c1f pa 0x0000000087f67000
+ ..255: pte 0x0000000021fdb401 pa 0x0000000087f6d000
+ .. ..511: pte 0x0000000021fdb001 pa 0x0000000087f6c000
+ .. .. ..510: pte 0x0000000021fdd807 pa 0x0000000087f76000
+ .. .. ..511: pte 0x000000002000200b pa 0x0000000080008000
+ */
+
+
+/*
+for(int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if(pte & PTE_V) {
+      printf("..%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
+      uint64 child = PTE2PA(pte);
+      pagetable_t cur_page = (pagetable_t)child;
+      for(int j = 0; j < 512; j++) {
+        pte_t pte = cur_page[j];
+        if(pte & PTE_V) {
+          printf("....%d: pte %p pa %p\n", j, pte, PTE2PA(pte));
+          uint64 child = PTE2PA(pte);
+          pagetable_t leaf_page = (pagetable_t)child;
+          for(int k = 0; k < 512; k++) {
+            pte_t pte = leaf_page[k];
+            if(pte & PTE_V) {
+              printf("......%d: pte %p pa %p\n", k, pte, PTE2PA(pte));
+            }
+          }
+        }
+      } // 2nd loop
+    }
+  } // 1st loop
+*/
