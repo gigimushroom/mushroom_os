@@ -67,24 +67,24 @@ usertrap(void)
     syscall();
   } else if (r_scause() == 13 || r_scause() == 15) {
     // 13: Page load fault, 15: Page store fault
-    printf("usertrap(): page fault, scause %d pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p vaddr=%p\n", r_sepc(), r_stval());
+    //printf("usertrap(): page fault, scause %d pid=%d\n", r_scause(), p->pid);
+    //printf("            sepc=%p vaddr=%p\n", r_sepc(), r_stval());
     // round vm page to page boundary
     uint64 vm = PGROUNDDOWN(r_stval());
     
     // allocate pm
     char *pa = kalloc();
-    printf("round down to: %d. pa: %p\n", vm, pa);
+    //printf("round down to: %d. pa: %p\n", vm, pa);
     if(pa == 0)
       panic("kalloc");
     // set zeros
-    //memset(pa, 0, PGSIZE);
+    memset(pa, 0, PGSIZE);
     // install page to page table
     if (mappages(p->pagetable, vm, PGSIZE, (uint64)pa, PTE_W|PTE_R|PTE_X|PTE_U) != 0) {
       kfree(pa);
       p->killed = 1;
     }
-    vmprint(p->pagetable);
+    //vmprint(p->pagetable);
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {

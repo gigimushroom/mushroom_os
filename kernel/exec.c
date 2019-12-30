@@ -10,6 +10,14 @@
 static int loadseg(pde_t *pgdir, uint64 addr, struct inode *ip, uint offset, uint sz);
 
 int
+my_strcmp(const char *p, const char *q)
+{
+  while(*p && *p == *q)
+    p++, q++;
+  return (uchar)*p - (uchar)*q;
+}
+
+int
 exec(char *path, char **argv)
 {
   char *s, *last;
@@ -105,7 +113,8 @@ exec(char *path, char **argv)
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
   
-  vmprint(pagetable);
+  if (my_strcmp(path, "/init") == 0)
+    vmprint(pagetable);
 
   // Commit to the user image.
   oldpagetable = p->pagetable;

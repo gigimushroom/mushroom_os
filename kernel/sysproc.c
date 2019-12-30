@@ -46,7 +46,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  printf("proc old size(%d), wants %d more.\n", myproc()->sz, n);
+  //printf("proc old size(%d), wants %d more.\n", myproc()->sz, n);
   addr = myproc()->sz;
   myproc()->sz+=n;
   // disable because lab 4.
