@@ -78,7 +78,7 @@ usertrap(void)
     if(pa == 0)
       panic("kalloc");
     // set zeros
-    memset(pa, 0, PGSIZE);
+    //memset(pa, 0, PGSIZE);
     // install page to page table
     if (mappages(p->pagetable, vm, PGSIZE, (uint64)pa, PTE_W|PTE_R|PTE_X|PTE_U) != 0) {
       kfree(pa);
