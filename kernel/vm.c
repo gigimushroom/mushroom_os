@@ -485,9 +485,9 @@ char* print_prefix(int level) {
     return "..";
   } 
   else if (level == 1) {
-    return "....";
+    return " .. ..";
   }
-  return "......";
+  return " .. .. ..";
 }
 
 void vmprint_helper(pagetable_t pagetable, char* prefix, int level) {
@@ -509,7 +509,7 @@ void vmprint_helper(pagetable_t pagetable, char* prefix, int level) {
 void vmprint(pagetable_t pagetable)
 {
   printf("page table %p\n", pagetable);
-  vmprint_helper(pagetable, "..", 2);
+  vmprint_helper(pagetable, " ..", 2);
 }
 
 /*
