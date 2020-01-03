@@ -2146,7 +2146,7 @@ main(int argc, char *argv[])
     {bigargtest, "bigargtest"},
     {bigwrite, "bigwrite"},
     {bsstest, "bsstest"},
-    {sbrkbasic, "sbrkbasic"},
+    //{sbrkbasic, "sbrkbasic"},
     {sbrkmuch, "sbrkmuch"},
     {kernmem, "kernmem"},
     {sbrkfail, "sbrkfail"},
