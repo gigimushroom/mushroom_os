@@ -385,12 +385,14 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
+    // if(pa0 == 0)
+    //   return -1;
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
-    memmove((void *)(pa0 + (dstva - va0)), src, n);
+    
+    if(pa0 != 0)
+      memmove((void *)(pa0 + (dstva - va0)), src, n);
 
     len -= n;
     src += n;
@@ -410,13 +412,21 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
+    // if(pa0 == 0) {
+    //   printf("pa0 is null\n");
+    //   return -1;
+    // }
     n = PGSIZE - (srcva - va0);
     if(n > len)
       n = len;
-    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
-
+    if (pa0 != 0) {
+      // In order to andle the case in which a process passes a valid address 
+      // from sbrk() to a system call such as read or write, 
+      // but the memory for that address has not yet been allocated.
+      // Hence, only memmove() if pa0 is not NULL.
+      memmove(dst, (void *)(pa0 + (srcva - va0)), n);
+    }
+    
     len -= n;
     dst += n;
     srcva = va0 + PGSIZE;

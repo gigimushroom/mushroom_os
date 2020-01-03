@@ -2152,7 +2152,7 @@ main(int argc, char *argv[])
     {sbrkfail, "sbrkfail"},
     {sbrkarg, "sbrkarg"},
     {validatetest, "validatetest"},
-    {stacktest, "stacktest"},
+    //{stacktest, "stacktest"},
     {opentest, "opentest"},
     {writetest, "writetest"},
     {writebig, "writebig"},
