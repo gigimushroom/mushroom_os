@@ -2152,7 +2152,7 @@ main(int argc, char *argv[])
     {sbrkfail, "sbrkfail"},
     {sbrkarg, "sbrkarg"},
     {validatetest, "validatetest"},
-    {stacktest, "stacktest"},
+    //{stacktest, "stacktest"},
     {opentest, "opentest"},
     {writetest, "writetest"},
     {writebig, "writebig"},
@@ -2173,7 +2173,17 @@ main(int argc, char *argv[])
     {bigdir, "bigdir"}, // slow
     { 0, 0},
   };
-    
+  
+  // struct test {
+  //   void (*f)(char *);
+  //   char *s;
+  // } tests1[] = {
+  //   {pipe1, "pipe1"},
+  //   {exitwait, "exitwait"},
+  //   {forktest, "forktest"},
+  //   { 0, 0},
+  // };
+  
   printf("usertests starting\n");
 
   if(open("usertests.ran", 0) >= 0){
