@@ -69,14 +69,22 @@ usertrap(void)
     // 13: Page load fault, 15: Page store fault
     //printf("usertrap(): page fault, scause %d pid=%d\n", r_scause(), p->pid);
     //printf("            sepc=%p vaddr=%p\n", r_sepc(), r_stval());
+    
+    if (r_stval() >= p->sz) {
+      //printf("Kill if page-faults on a virtual memory address higher than any allocated with sbrk().");
+      p->killed = 1;
+      goto end;
+    }
     // round vm page to page boundary
     uint64 vm = PGROUNDDOWN(r_stval());
     
     // allocate pm
     char *pa = kalloc();
     //printf("round down to: %d. pa: %p\n", vm, pa);
-    if(pa == 0)
-      panic("kalloc");
+    if(pa == 0) {
+      p->killed = 1;
+      goto end;
+    }
     // set zeros
     memset(pa, 0, PGSIZE);
     // install page to page table
@@ -93,6 +101,7 @@ usertrap(void)
     p->killed = 1;
   }
 
+end:
   if(p->killed)
     exit(-1);
 

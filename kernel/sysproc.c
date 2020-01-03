@@ -44,14 +44,20 @@ sys_sbrk(void)
   int addr;
   int n;
 
-  if(argint(0, &n) < 0)
+  if(argint(0, &n) < 0) {
+    printf("why pass in a negative sbrk");
     return -1;
+  }
   //printf("proc old size(%d), wants %d more.\n", myproc()->sz, n);
   addr = myproc()->sz;
   myproc()->sz+=n;
   // disable because lab 4.
   // if(growproc(n) < 0)
   //   return -1;
+  if (n < 0) {
+    //printf("sbrk is called with negative n\n");
+    uvmdealloc(myproc()->pagetable, addr, myproc()->sz);
+  }
   return addr;
 }
 
