@@ -95,3 +95,34 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64 sys_sigalarm(void)
+{
+  uint64 addr;
+  int ticks;
+
+  if(argint(0, &ticks) < 0)
+    return -1;
+  if(argaddr(1, &addr) < 0)
+    return -1;
+
+  myproc()->ticks = ticks;
+  myproc()->handler = addr;
+  //printf("Saving ticks and handler for alarm. Ticks is: %d\n", ticks);
+
+  return 0;
+}
+
+uint64 sys_sigreturn(void)
+{
+  //printf("current process tick: %d\n", myproc()->cur_ticks);
+  struct proc *p = myproc();
+  memmove(p->tf, p->alarm_tf, PGSIZE);
+
+  kfree(p->alarm_tf);
+  p->alarm_tf = 0;
+  p->alarm_on = 0;
+  return 0;
+}
+
+
