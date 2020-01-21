@@ -67,12 +67,50 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == 15) {
+    //printf("page fault. usertrap(): unexpected scause %d pid=%d\n", r_scause(), p->pid);
+    //printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    //printf("page fault trap.\n");
+    /*
+    Modify usertrap() to recognize page faults. 
+    When a page-fault occurs on a COW page, allocate a new page with kalloc(), 
+    copy the old page to the new page, 
+    and install the new page in the PTE with PTE_W set.
+    */
+    // Get physial page address and correct flags.
+    uint64 start_va = PGROUNDDOWN(r_stval());
+    pte_t *pte;
+    pte = walk(p->pagetable, start_va, 0);
+    if (pte == 0) {
+      printf("page not found\n");
+      p->killed = 1;
+      goto end;
+    }
+    if ((*pte & PTE_V) && (*pte & PTE_U) && (*pte & PTE_RSW)) {
+      uint flags = PTE_FLAGS(*pte);
+      // +Write, -COW
+      flags |= PTE_W;
+      flags &= (~PTE_RSW);
+
+      char *mem = kalloc();
+      char *pa = (char *)PTE2PA(*pte);
+      memmove(mem, pa, PGSIZE);
+      uvmunmap(p->pagetable, start_va, PGSIZE, 0);
+      // decrement old pa ref count.
+      dec_ref((void*)pa);
+      if (mappages(p->pagetable, start_va, PGSIZE, (uint64)mem, flags) != 0) {
+        p->killed = 1;
+        printf("sometthing is wrong in mappages in trap.\n");
+      }
+    }
+    
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("usertrap(): unexpected scause %d pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
   }
 
+end:
   if(p->killed)
     exit(-1);
 

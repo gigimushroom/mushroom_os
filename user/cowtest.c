@@ -14,9 +14,9 @@ simpletest()
 {
   uint64 phys_size = PHYSTOP - KERNBASE;
   int sz = (phys_size / 3) * 2;
-
-  printf("simple: ");
   
+  printf("simple: ");
+
   char *p = sbrk(sz);
   if(p == (char*)0xffffffffffffffffL){
     printf("sbrk(%d) failed\n", sz);
@@ -33,9 +33,9 @@ simpletest()
     exit(-1);
   }
 
-  if(pid == 0)
+  if(pid == 0) {
     exit(0);
-
+  }
   wait(0);
 
   if(sbrk(-sz) == (char*)0xffffffffffffffffL){

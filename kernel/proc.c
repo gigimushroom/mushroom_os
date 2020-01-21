@@ -133,7 +133,7 @@ static void
 freeproc(struct proc *p)
 {
   if(p->tf)
-    kfree((void*)p->tf);
+    dec_ref((void*)p->tf);
   p->tf = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -284,7 +284,7 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&np->lock);
-
+  //printf("end of fork %d\n", pid);
   return pid;
 }
 
@@ -392,7 +392,7 @@ wait(uint64 addr)
   // hold p->lock for the whole time to avoid lost
   // wakeups from a child's exit().
   acquire(&p->lock);
-
+  //printf("waitinf...\n");
   for(;;){
     // Scan through table looking for exited children.
     havekids = 0;
@@ -406,32 +406,37 @@ wait(uint64 addr)
         acquire(&np->lock);
         havekids = 1;
         if(np->state == ZOMBIE){
+          //printf("found a zombie!\n");
           // Found one.
           pid = np->pid;
           if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
                                   sizeof(np->xstate)) < 0) {
             release(&np->lock);
             release(&p->lock);
+            //printf("what is wrong\n");
             return -1;
           }
           freeproc(np);
           release(&np->lock);
           release(&p->lock);
+          //printf("exit a zombie %d!\n", pid);
           return pid;
         }
         release(&np->lock);
       }
     }
-
+    
     // No point waiting if we don't have any children.
     if(!havekids || p->killed){
       release(&p->lock);
       return -1;
     }
-    
+    //printf("waitinf...a child\n");
     // Wait for a child to exit.
     sleep(p, &p->lock);  //DOC: wait-sleep
+    //printf("waitinf...a child end\n");
   }
+  //printf("waitinf...end of wait\n");
 }
 
 // Per-CPU process scheduler.
