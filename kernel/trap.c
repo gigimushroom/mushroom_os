@@ -68,6 +68,9 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // lab 6 alarm
     if (which_dev == 2 && p->alarm_on == 0) {
+      // TODO(xiaying): only call handler if 2 ticks.
+      // otherwise, just bump cur_ticks.
+      
       // Save trapframe
       p->alarm_on = 1;
       struct trapframe *tf = kalloc();

@@ -122,6 +122,7 @@ uint64 sys_sigreturn(void)
   kfree(p->alarm_tf);
   p->alarm_tf = 0;
   p->alarm_on = 0;
+  p->cur_ticks = 0;
   return 0;
 }
 
