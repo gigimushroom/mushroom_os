@@ -78,6 +78,9 @@ freerange(void *pa_start, void *pa_end)
 void
 kfree(void *pa)
 {
+  push_off();
+  int id = cpuid();
+  
   struct run *r;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
@@ -88,13 +91,13 @@ kfree(void *pa)
 
   r = (struct run*)pa;
   
-  // get cpu id
-  int id = getcpuid();
   acquire(&mem_cpus[id].lock);
   // critical section to store to own cpu free list
   r->next = mem_cpus[id].freelist;
   mem_cpus[id].freelist = r;
   release(&mem_cpus[id].lock);
+  
+  pop_off();
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -103,33 +106,42 @@ kfree(void *pa)
 void *
 kalloc(void)
 {
+  push_off();
+  int id = cpuid();
+  
   struct run *r;
-
-  int id = getcpuid();
+  
   acquire(&mem_cpus[id].lock);
   
   r = mem_cpus[id].freelist;
   if(r) {
     mem_cpus[id].freelist = r->next;
-  } else {
+  } 
+  release(&mem_cpus[id].lock);
+  
+  if (!r) {
     // We need to borrow from other cpu's free list.
     //printf("CPU %d needs to borrow memory\n", id);
     for (int i =0; i < NCPU; i++) {
+      if (i == id) {
+        continue;
+      }
+      acquire(&mem_cpus[i].lock);
       struct run *f = mem_cpus[i].freelist;
       if (f) {
         //printf("CPU %d got free memory from CPU %d\n", id, i);
-        acquire(&mem_cpus[i].lock);
         r = f;
         mem_cpus[i].freelist = f->next;
-        release(&mem_cpus[i].lock);
-        break;
       }
+      release(&mem_cpus[i].lock);
+      if (r)
+        break;
     }
   }
-    
-  release(&mem_cpus[id].lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+    
+  pop_off();
   return (void*)r;
 }
