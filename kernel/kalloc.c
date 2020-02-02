@@ -56,7 +56,6 @@ kinit()
   for (int i = 0; i < NCPU; i++) {
     initlock(&mem_cpus[i].lock, "kmem");
   }
-  
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -117,6 +116,11 @@ kalloc(void)
   if(r) {
     mem_cpus[id].freelist = r->next;
   } 
+  // We have to release the lock here
+  // if we hold the lock and try to steal other cpu's freelist,
+  // we will get deadlock!
+  // ex: CPU a holds lock A, to grab lock B, 
+  // CPU 2 holds B, try to grab lock A.
   release(&mem_cpus[id].lock);
   
   if (!r) {
