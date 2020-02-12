@@ -157,6 +157,7 @@ sys_link(void)
   return 0;
 
 bad:
+  printf("......bad\n");
   ilock(ip);
   ip->nlink--;
   iupdate(ip);
@@ -208,6 +209,7 @@ sys_unlink(void)
     goto bad;
   ilock(ip);
 
+  //printf("Unlink inode(%d) sym target(%s) type(%d) link(%d) ref(%d)\n", ip->inum, ip->symlink_target, ip->type, ip->nlink, ip->ref);
   if(ip->nlink < 1)
     panic("unlink: nlink < 1");
   if(ip->type == T_DIR && !isdirempty(ip)){
@@ -225,6 +227,7 @@ sys_unlink(void)
   iunlockput(dp);
 
   ip->nlink--;
+
   iupdate(ip);
   iunlockput(ip);
 
@@ -254,6 +257,10 @@ create(char *path, short type, short major, short minor)
     ilock(ip);
     if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
       return ip;
+    if(type == T_SYMLINK) {
+      //printf("Found it!!!! %s. %d\n", path, type);
+      return ip;
+    }
     iunlockput(ip);
     return 0;
   }
@@ -265,6 +272,9 @@ create(char *path, short type, short major, short minor)
   ip->major = major;
   ip->minor = minor;
   ip->nlink = 1;
+  if (type == T_SYMLINK && ip->type != T_SYMLINK) {
+    ip->type = T_SYMLINK;
+  }
   iupdate(ip);
 
   if(type == T_DIR){  // Create . and .. entries.
@@ -328,6 +338,34 @@ sys_open(void)
     iunlockput(ip);
     end_op(ROOTDEV);
     return -1;
+  }
+
+  if ((ip->type == T_SYMLINK) && !(omode & O_NOFOLLOW)){
+    int count = 0;
+    while (ip->type == T_SYMLINK && count < 10) {
+      int len = 0;
+      readi(ip, 0, (uint64)&len, 0, sizeof(int));
+      
+      if(len > MAXPATH)
+        panic("open: corrupted symlink inode");
+      
+      readi(ip, 0, (uint64)path, sizeof(int), len + 1);
+      iunlockput(ip);
+
+      //printf("OMG!!!!%s\n", path);
+      if((ip = namei(path)) == 0){
+        end_op(ROOTDEV);
+        return -1;
+      }
+      ilock(ip);
+      count++;
+    }
+    if (count >= 10) {
+      printf("We got a cycle!\n");
+      iunlockput(ip);
+      end_op(ROOTDEV);
+      return -1;
+    }
   }
 
   if(ip->type == T_DEVICE){
@@ -480,6 +518,32 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_symlink(void)
+{
+  char target[MAXPATH], path[MAXARG];
+  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0){
+    return -1;
+  }
+  //printf("creating a sym link. Target(%s). Path(%s)\n", target, path);
+
+  begin_op(ROOTDEV);
+  struct inode *ip = create(path, T_SYMLINK, 0, 0);
+  if(ip == 0){
+    end_op(ROOTDEV);
+    return -1;
+  }
+  
+  int len = strlen(target);
+  writei(ip, 0, (uint64)&len, 0, sizeof(int));
+  writei(ip, 0, (uint64)target, sizeof(int), len + 1);
+  iupdate(ip);
+  iunlockput(ip);
+
+  end_op(ROOTDEV);
   return 0;
 }
 

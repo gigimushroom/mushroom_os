@@ -33,14 +33,14 @@
 // Contents of the header block, used for both the on-disk header block
 // and to keep track in memory of logged block# before commit.
 struct logheader {
-  int n;
+  int n; //xiaying: number of current added block.
   int block[LOGSIZE];
 };
 
 struct log {
   struct spinlock lock;
   int start;
-  int size;
+  int size; //xiaying: total allowed capacity.
   int outstanding; // how many FS sys calls are executing.
   int committing;  // in commit(), please wait.
   int dev;
@@ -75,7 +75,7 @@ install_trans(int dev)
     struct buf *dbuf = bread(dev, log[dev].lh.block[tail]); // read dst
     memmove(dbuf->data, lbuf->data, BSIZE);  // copy block to dst
     bwrite(dbuf);  // write dst to disk
-    bunpin(dbuf);
+    bunpin(dbuf); // xiaying: why we pin 
     brelse(lbuf);
     brelse(dbuf);
   }
