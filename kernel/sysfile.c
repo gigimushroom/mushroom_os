@@ -485,6 +485,19 @@ sys_pipe(void)
 
 uint64
 sys_mmap(void) {
+/*
+find an unused region in the process's address space 
+in which to map the file, and add a VMA to the process's table
+of mapped regions. 
+*/
+
+// rounddown addr
+
+// find unused region
+// the dump solution is loop each of them find the invalid one
+// set the content
+// In page fault, manually check memory region for each.
+
   
   return 0xffffffffffffffff;
 }
