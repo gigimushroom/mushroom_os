@@ -66,3 +66,6 @@
 //   TRAPFRAME (p->tf, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+
+// mmap VMA
+#define VMA_ADDR(p) (TRAMPOLINE - ((p)+2)* PGSIZE)

@@ -123,6 +123,10 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // mmap
+  memset(&p->vma, 0, sizeof p->vma);
+  p->cur_max = VMA_ADDR(MAXVA - 2 * PGSIZE);
+  
   return p;
 }
 

@@ -483,6 +483,10 @@ sys_pipe(void)
   return 0;
 }
 
+/*
+void *mmap(void *addr, size_t length, int prot, int flags,
+           int fd, off_t offset);
+*/
 uint64
 sys_mmap(void) {
 /*
@@ -490,16 +494,57 @@ find an unused region in the process's address space
 in which to map the file, and add a VMA to the process's table
 of mapped regions. 
 */
-
 // rounddown addr
-
 // find unused region
 // the dump solution is loop each of them find the invalid one
 // set the content
 // In page fault, manually check memory region for each.
 
+  uint64 addr;
+  int size, prot, flags, fd, offset;
+
+  if(argaddr(0, &addr) < 0){
+    return -1;
+  }
+  if(argint(1, &size) < 0 || argint(2, &prot) < 0 || argint(3, &flags) < 0){
+    return -1;
+  }
+  if(argint(4, &fd) < 0 || argint(5, &offset) < 0){
+    return -1;
+  }
   
-  return 0xffffffffffffffff;
+  printf("addr(%d), size(%d), prot(%d), flags(%d), fd(%d), offset(%d)\n",
+        addr, size, prot, flags, fd, offset);
+  
+  
+  struct proc *p = myproc();
+  uint64 cur_max = p->cur_max;
+  uint64 start_addr = PGROUNDDOWN(cur_max - size);
+  
+  struct vm_area_struct *vm = 0;
+  for (int i=0; i<100; i++) {
+    if (p->vma[i].valid == 0) {
+      vm = &p->vma[i];
+      break;
+    }
+  }
+  if (vm) {
+    vm->valid = 1;
+    vm->start_ad = start_addr;
+    vm->end_ad = cur_max;
+    vm->len = size;
+    vm->prot = prot;
+    vm->flags = flags;
+    vm->fd = fd;
+    vm->file = p->ofile[fd];
+    
+    // reset process current max available
+    p->cur_max = start_addr;
+  } else {
+    return 0xffffffffffffffff;
+  }
+
+  return start_addr;
 }
 
 uint64

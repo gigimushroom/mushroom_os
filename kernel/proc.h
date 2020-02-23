@@ -84,9 +84,11 @@ enum procstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct vm_area_struct {
   int valid;
-  uint64 addr;
+  uint64 start_ad;
+  uint64 end_ad;
   int len;
-  uint permissions;
+  int prot;
+  int flags;
   struct file *file;
   int fd;
 };
@@ -115,4 +117,5 @@ struct proc {
   
   // mmap
   struct vm_area_struct vma[100];
+  uint64 cur_max; // default to MAXVA - 2 * PGSIZE
 };
