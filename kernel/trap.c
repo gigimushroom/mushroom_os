@@ -98,9 +98,11 @@ usertrap(void)
     mmap_read(vm->file, (uint64)fault_addr_head, PGSIZE);
     
     // map it into the user address space.
-    printf("page fault adddr(%p), max va(%p). VMA start(%p), end(%p).\n", 
-            fault_addr_head, MAXVA, vm->start_ad, vm->end_ad);
-    if (mappages(p->pagetable, fault_addr_head, PGSIZE, (uint64)pa, vm->prot) != 0) {
+    printf("PA(%p). page fault adddr(%p), max va(%p). VMA start(%p), end(%p).\n", 
+            pa, fault_addr_head, MAXVA, vm->start_ad, vm->end_ad);
+    
+    // Install the page and ensure user can access. Use PTE_U.
+    if (mappages(p->pagetable, fault_addr_head, PGSIZE, (uint64)pa, vm->prot | PTE_U) != 0) {
       kfree(pa);
       p->killed = 1;
     }

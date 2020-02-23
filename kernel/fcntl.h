@@ -6,8 +6,8 @@
 // for mmap 
 // prot indicates whether memory should be mapped read,
 // write, and/or executable
-#define PROT_READ   0x000
-#define PROT_WRITE  0x001
+#define PROT_READ   (1L << 1)
+#define PROT_WRITE  (1L << 2)
 // Shared is to mwrite back to file if modified
 // primate means should not write back.
 #define MAP_SHARED  0x000
