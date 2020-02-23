@@ -513,12 +513,12 @@ of mapped regions.
     return -1;
   }
   
-  printf("addr(%d), size(%d), prot(%d), flags(%d), fd(%d), offset(%d)\n",
-        addr, size, prot, flags, fd, offset);
-  
   
   struct proc *p = myproc();
   uint64 cur_max = p->cur_max;
+  printf("addr(%p), size(%d), prot(%d), flags(%d), fd(%d), offset(%d). Current Max(%p). MAXVA(%p)\n",
+          addr, size, prot, flags, fd, offset, cur_max, MAXVA);
+        
   uint64 start_addr = PGROUNDDOWN(cur_max - size);
   
   struct vm_area_struct *vm = 0;
@@ -539,7 +539,10 @@ of mapped regions.
     vm->file = p->ofile[fd];
     
     // reset process current max available
-    p->cur_max = start_addr;
+    p->cur_max = start_addr - 1;
+    
+    printf("mmap max va(%p). VMA start(%p), end(%p).\n", 
+            MAXVA, vm->start_ad, vm->end_ad);
   } else {
     return 0xffffffffffffffff;
   }

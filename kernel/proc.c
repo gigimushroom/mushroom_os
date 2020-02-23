@@ -125,8 +125,7 @@ found:
 
   // mmap
   memset(&p->vma, 0, sizeof p->vma);
-  p->cur_max = VMA_ADDR(MAXVA - 2 * PGSIZE);
-  
+  p->cur_max = (TRAMPOLINE - 2 * PGSIZE);
   return p;
 }
 
@@ -694,3 +693,9 @@ procdump(void)
     printf("\n");
   }
 }
+
+void mmap_read(struct file *f, uint64 va, int size) {
+  ilock(f->ip);
+  readi(f->ip, 1, va, f->off, size);
+  iunlock(f->ip);
+} 

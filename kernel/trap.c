@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 
+
 struct spinlock tickslock;
 uint ticks;
 
@@ -70,6 +71,39 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == 13) {
+    printf("usertrap(): mmap page fault %p (%s) pid=%d\n", r_scause(), scause_desc(r_scause()), p->pid);
+    // allocate a page of physical memory.
+    char *pa = kalloc();
+      if(pa == 0)
+        panic("kalloc");
+        
+    // find which VMA has it.
+    uint64 fault_addr = r_stval();
+    struct vm_area_struct *vm = 0;
+    for (int i=0; i<100; i++) {
+      if (p->vma[i].start_ad <= fault_addr && 
+          fault_addr <= p->vma[i].end_ad ) {
+        vm = &p->vma[i];
+        break;
+      }
+    }
+    if (!vm) {
+      printf("VM addr is not lived in VMA, error out.\n");
+      p->killed = 1;
+    }
+    
+    // read 4096 bytes of the relevant file into that page.
+    uint64 fault_addr_head = PGROUNDDOWN(fault_addr);
+    mmap_read(vm->file, (uint64)fault_addr_head, PGSIZE);
+    
+    // map it into the user address space.
+    printf("page fault adddr(%p), max va(%p). VMA start(%p), end(%p).\n", 
+            fault_addr_head, MAXVA, vm->start_ad, vm->end_ad);
+    if (mappages(p->pagetable, fault_addr_head, PGSIZE, (uint64)pa, vm->prot) != 0) {
+      kfree(pa);
+      p->killed = 1;
+    }
   } else {
     printf("usertrap(): unexpected scause %p (%s) pid=%d\n", r_scause(), scause_desc(r_scause()), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

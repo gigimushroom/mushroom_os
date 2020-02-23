@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "file.h": "c"
+        "file.h": "c",
+        "defs.h": "c",
+        "types.h": "c",
+        "memlayout.h": "c"
     }
 }

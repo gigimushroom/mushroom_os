@@ -68,4 +68,4 @@
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
 
 // mmap VMA
-#define VMA_ADDR(p) (TRAMPOLINE - ((p)+2)* PGSIZE)
+//#define VMA_ADDR(p) (TRAMPOLINE - ((p)+2)* PGSIZE)
