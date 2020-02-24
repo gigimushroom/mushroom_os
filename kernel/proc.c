@@ -697,6 +697,7 @@ procdump(void)
 void mmap_read(struct file *f, uint64 va, int size) {
   ilock(f->ip);
   int n = readi(f->ip, 0, va, f->off, size);
+  f->off+=n;
   printf("Current read size %d\n", n);
   iunlock(f->ip);
 } 

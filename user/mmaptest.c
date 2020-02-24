@@ -114,6 +114,7 @@ mmap_test(void)
   if (p == MAP_FAILED)
     err("mmap (1)");
   _v1(p);
+  printf("xiaying is here!\n");
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (1)");
 
