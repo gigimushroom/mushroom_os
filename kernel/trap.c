@@ -77,7 +77,8 @@ usertrap(void)
     char *pa = kalloc();
       if(pa == 0)
         panic("kalloc");
-        
+    memset(pa, 0, PGSIZE);
+    
     // find which VMA has it.
     uint64 fault_addr = r_stval();
     struct vm_area_struct *vm = 0;
@@ -93,23 +94,20 @@ usertrap(void)
       p->killed = 1;
     }
     
-    // read 4096 bytes of the relevant file into that page.
-    uint64 fault_addr_head = PGROUNDDOWN(fault_addr);
-    mmap_read(vm->file, (uint64)fault_addr_head, PGSIZE);
+    // read 4096 bytes of the relevant file into 
+    // the kernel allocated page.
+    mmap_read(vm->file, (uint64)pa, PGSIZE);
     
-    // map it into the user address space.
-    printf("PA(%p). page fault adddr(%p), max va(%p). VMA start(%p), end(%p).\n", 
-            pa, fault_addr_head, MAXVA, vm->start_ad, vm->end_ad);
-    
-    char *t = (char *)fault_addr_head;
-    if (t[0] != 'A') {
-      printf("mismatch!!!! wanted 'A', got 0x%x\n", t[0]);
-    }
+    // Map it into the user address space.
     // Install the page and ensure user can access. Use PTE_U.
+    uint64 fault_addr_head = PGROUNDDOWN(fault_addr);
     if (mappages(p->pagetable, fault_addr_head, PGSIZE, (uint64)pa, vm->prot | PTE_U) != 0) {
       kfree(pa);
       p->killed = 1;
     }
+    printf("PA(%p). VA base(%p), VMA start(%p), end(%p).\n", 
+          pa, fault_addr_head, vm->start_ad, vm->end_ad);
+          
   } else {
     printf("usertrap(): unexpected scause %p (%s) pid=%d\n", r_scause(), scause_desc(r_scause()), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

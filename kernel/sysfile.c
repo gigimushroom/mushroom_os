@@ -536,12 +536,13 @@ of mapped regions.
     vm->flags = flags;
     vm->fd = fd;
     vm->file = p->ofile[fd];
+    vm->file->ref++;
     
     // reset process current max available
     p->cur_max = start_addr - 1;
     
-    printf("mmap max va(%p). VMA start(%p), end(%p).\n", 
-            MAXVA, vm->start_ad, vm->end_ad);
+    printf("mmap max va(%p). VMA start(%p), end(%p). Inode(%d)\n", 
+            MAXVA, vm->start_ad, vm->end_ad, vm->file->ip->inum);
   } else {
     return 0xffffffffffffffff;
   }
