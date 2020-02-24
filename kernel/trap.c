@@ -71,13 +71,8 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if (r_scause() == 13) {
+  } else if (r_scause() == 13 || r_scause() == 15) {
     printf("usertrap(): mmap page fault %p (%s) pid=%d\n", r_scause(), scause_desc(r_scause()), p->pid);
-    // allocate a page of physical memory.
-    char *pa = kalloc();
-      if(pa == 0)
-        panic("kalloc");
-    memset(pa, 0, PGSIZE);
     
     // find which VMA has it.
     uint64 fault_addr = r_stval();
@@ -94,9 +89,11 @@ usertrap(void)
       p->killed = 1;
     }
     
-    // read 4096 bytes of the relevant file into 
-    // the kernel allocated page.
-    mmap_read(vm->file, (uint64)pa, PGSIZE);
+    // allocate a page of physical memory.
+    char *pa = kalloc();
+      if(pa == 0)
+        panic("kalloc");
+    memset(pa, 0, PGSIZE);
     
     // Map it into the user address space.
     // Install the page and ensure user can access. Use PTE_U.
@@ -105,6 +102,10 @@ usertrap(void)
       kfree(pa);
       p->killed = 1;
     }
+    
+    // read 4096 bytes of the relevant file into user space.
+    mmap_read(vm->file, (uint64)fault_addr_head, PGSIZE);
+    
     printf("PA(%p). VA base(%p), VMA start(%p), end(%p).\n", 
           pa, fault_addr_head, vm->start_ad, vm->end_ad);
           
