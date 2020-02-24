@@ -101,6 +101,10 @@ usertrap(void)
     printf("PA(%p). page fault adddr(%p), max va(%p). VMA start(%p), end(%p).\n", 
             pa, fault_addr_head, MAXVA, vm->start_ad, vm->end_ad);
     
+    char *t = (char *)fault_addr_head;
+    if (t[0] != 'A') {
+      printf("mismatch!!!! wanted 'A', got 0x%x\n", t[0]);
+    }
     // Install the page and ensure user can access. Use PTE_U.
     if (mappages(p->pagetable, fault_addr_head, PGSIZE, (uint64)pa, vm->prot | PTE_U) != 0) {
       kfree(pa);

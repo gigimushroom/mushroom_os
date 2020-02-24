@@ -513,7 +513,6 @@ of mapped regions.
     return -1;
   }
   
-  
   struct proc *p = myproc();
   uint64 cur_max = p->cur_max;
   printf("addr(%p), size(%d), prot(%d), flags(%d), fd(%d), offset(%d). Current Max(%p). MAXVA(%p)\n",
