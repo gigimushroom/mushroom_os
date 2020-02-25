@@ -699,6 +699,9 @@ void mmap_read(struct file *f, uint64 va, int size) {
   // read to user space VA.
   int n = readi(f->ip, 1, va, f->off, size);
   f->off+=n;
+  if (n == 0) {
+    printf("what is going on\n");
+  }
   printf("Current read size %d\n", n);
   iunlock(f->ip);
 } 

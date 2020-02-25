@@ -8,7 +8,8 @@
 // write, and/or executable
 #define PROT_READ   (1L << 1)
 #define PROT_WRITE  (1L << 2)
+
 // Shared is to mwrite back to file if modified
 // primate means should not write back.
-#define MAP_SHARED  0x000
-#define MAP_PRIVATE 0x201
+#define MAP_PRIVATE 0x000
+#define MAP_SHARED  0x001

@@ -515,7 +515,7 @@ of mapped regions.
   
   struct proc *p = myproc();
   uint64 cur_max = p->cur_max;
-  printf("addr(%p), size(%d), prot(%d), flags(%d), fd(%d), offset(%d). Current Max(%p). MAXVA(%p)\n",
+  printf("addr(%p), size(%d), prot(%d), flags(%p), fd(%d), offset(%d). Current Max(%p). MAXVA(%p)\n",
           addr, size, prot, flags, fd, offset, cur_max, MAXVA);
         
   uint64 start_addr = PGROUNDDOWN(cur_max - size);
@@ -550,9 +550,83 @@ of mapped regions.
   return start_addr;
 }
 
+//void _write_back()
+
 uint64
 sys_munmap(void) {
+  uint64 addr;
+  int size;
+
+  if(argaddr(0, &addr) < 0 || argint(1, &size) < 0){
+    return -1;
+  }
   
-  return -1;
+  uint64 start_base = PGROUNDDOWN(addr);
+  uint64 end_base = PGROUNDUP(addr + size - 1);
+  
+  struct proc *p = myproc();
+  struct vm_area_struct *vm = 0;
+  for (int i=0; i<100; i++) {
+    if (p->vma[i].valid == 1 && 
+        p->vma[i].start_ad <=  start_base &&
+        end_base <= p->vma[i].end_ad) {
+      vm = &p->vma[i];
+      break;
+    }
+  }
+  if (!vm) {
+    return -1;
+  }
+  // 4 cases
+  // first part is un-map
+  if (vm->start_ad == start_base && end_base < vm->end_ad) {
+    vm->start_ad = end_base;
+    vm->len -= (end_base - start_base);
+  } else if (vm->start_ad < start_base && end_base == vm->end_ad){
+    // last part is un-map
+    vm->end_ad = start_base;
+    vm->len = (end_base - start_base);
+  } else if (vm->start_ad == start_base && vm->end_ad == end_base) {
+    // exact size
+    vm->file->ref--;
+    vm->file->off = 0;
+    vm->valid = 0;
+    vm->len = 0;
+  } else if (vm->start_ad < start_base && end_base < vm->end_ad) {
+    uint64 cache_end = vm->end_ad;
+    // un-map in the middle
+    vm->end_ad = start_base;
+    vm->len = start_base - vm->start_ad;
+    
+    // find another empty VMA and set the 2nd part.
+    struct vm_area_struct *vm2 = 0;
+    for (int i=0; i<100; i++) {
+      if (p->vma[i].valid == 1 && 
+          p->vma[i].start_ad <=  start_base &&
+          end_base <= p->vma[i].end_ad) {
+        vm2 = &p->vma[i];
+        break;
+      }
+    }
+    if (vm2) {
+      vm2->valid = 1;
+      vm2->start_ad = end_base;
+      vm2->end_ad = cache_end;
+      vm2->len = cache_end - end_base;
+      vm2->prot = vm->prot;
+      vm2->flags = vm->flags;
+      vm2->fd = vm->fd;
+      vm2->file = vm->file;
+      vm2->file->ref++;
+    }
+  }
+  if (vm->flags & MAP_SHARED) {
+    printf("....We need to write back file\n");
+    // need to fix offset...
+    filewrite(vm->file, start_base, size);
+  }
+  uvmunmap(p->pagetable, start_base, size, 1);
+  
+  return size;
 }
 

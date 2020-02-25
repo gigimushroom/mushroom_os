@@ -3,6 +3,7 @@
         "file.h": "c",
         "defs.h": "c",
         "types.h": "c",
-        "memlayout.h": "c"
+        "memlayout.h": "c",
+        "ios": "c"
     }
 }

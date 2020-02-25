@@ -36,7 +36,6 @@ err(char *why)
 void
 _v1(char *p)
 {
-  printf("examing....content. %p.\n", p);
   int i;
   for (i = 0; i < PGSIZE*2; i++) {
     if (i < PGSIZE + (PGSIZE/2)) {
@@ -114,7 +113,7 @@ mmap_test(void)
   if (p == MAP_FAILED)
     err("mmap (1)");
   _v1(p);
-  printf("xiaying is here!\n");
+  
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (1)");
 
