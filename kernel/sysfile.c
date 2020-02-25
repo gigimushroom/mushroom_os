@@ -574,7 +574,7 @@ sys_munmap(void) {
   }
   
   uint64 start_base = PGROUNDDOWN(addr);
-  uint64 end_base = PGROUNDUP(addr + size - 1);
+  uint64 end_base = PGROUNDDOWN(addr + size);
   
   struct proc *p = myproc();
   struct vm_area_struct *vm = 0;
@@ -589,7 +589,13 @@ sys_munmap(void) {
   if (!vm) {
     return -1;
   }
+  
+  uint64 free_start = vm->start_ad;
+  uint64 free_end = vm->end_ad;
   // 4 cases
+  //int off = 0;
+  printf("start base(%p), end base(%p). vm start(%p), vm end(%p)\n",
+         start_base, end_base, vm->start_ad, vm->end_ad);
   // first part is un-map
   if (vm->start_ad == start_base && end_base < vm->end_ad) {
     vm->start_ad = end_base;
@@ -605,6 +611,7 @@ sys_munmap(void) {
     vm->valid = 0;
     vm->len = 0;
   } else if (vm->start_ad < start_base && end_base < vm->end_ad) {
+    printf("this is very tricky...need to fix offset\n");
     uint64 cache_end = vm->end_ad;
     // un-map in the middle
     vm->end_ad = start_base;
@@ -631,11 +638,19 @@ sys_munmap(void) {
       vm2->file = vm->file;
       vm2->file->ref++;
     }
+  } else {
+    printf("Err. start base(%p), end base(%p). vm start(%p), vm end(%p)",
+         start_base, end_base, vm->start_ad, vm->end_ad);
   }
   if (vm->flags & MAP_SHARED) {
     printf("....We need to write back file\n");
-    // need to fix offset...
-    filewrite(vm->file, start_base, size);
+    
+    struct file *f = vm->file;
+    begin_op(f->ip->dev);
+    ilock(f->ip);
+    writei(f->ip, 1, free_start, 0, free_end - free_start);
+    iunlock(f->ip);
+    end_op(f->ip->dev);
   }
   uvmunmap(p->pagetable, start_base, size, 1);
   
