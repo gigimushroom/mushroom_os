@@ -514,6 +514,18 @@ of mapped regions.
   }
   
   struct proc *p = myproc();
+  
+  struct file *f = p->ofile[fd];
+  // check that mmap doesn't allow read/write mapping of a
+  // file opened read-only.
+  if (flags & MAP_SHARED) {
+    if (!(f->writable) && (prot & PROT_WRITE)) {
+      printf("File is read-only, but we mmap with write permission and flag. %d vs %p\n",
+            f->writable, prot);
+      return 0xffffffffffffffff;
+    }
+  }
+  
   uint64 cur_max = p->cur_max;
   printf("addr(%p), size(%d), prot(%d), flags(%p), fd(%d), offset(%d). Current Max(%p). MAXVA(%p)\n",
           addr, size, prot, flags, fd, offset, cur_max, MAXVA);
