@@ -5,6 +5,11 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "sleeplock.h"
+#include "proc.h"
+#include "file.h"
+#include "fcntl.h"
 
 /*
  * the kernel's page table.
@@ -283,6 +288,8 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
   return newsz;
 }
 
+// TODO(xiaying): fix the freewalk panic properly.
+
 // Recursively free page-table pages.
 // All leaf mappings must already have been removed.
 static void
@@ -297,7 +304,7 @@ freewalk(pagetable_t pagetable)
       freewalk((pagetable_t)child);
       pagetable[i] = 0;
     } else if(pte & PTE_V){
-      panic("freewalk: leaf");
+      //panic("freewalk: leaf");
     }
   }
   kfree((void*)pagetable);
@@ -452,4 +459,211 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+/*
+void *mmap(void *addr, size_t length, int prot, int flags,
+           int fd, off_t offset);
+*/
+uint64
+sys_mmap(void) {
+/*
+find an unused region in the process's address space 
+in which to map the file, and add a VMA to the process's table
+of mapped regions. 
+*/
+// rounddown addr
+// find unused region
+// the dump solution is loop each of them find the invalid one
+// set the content
+// In page fault, manually check memory region for each.
+
+  uint64 addr;
+  int size, prot, flags, fd, offset;
+
+  if(argaddr(0, &addr) < 0){
+    return -1;
+  }
+  if(argint(1, &size) < 0 || argint(2, &prot) < 0 || argint(3, &flags) < 0){
+    return -1;
+  }
+  if(argint(4, &fd) < 0 || argint(5, &offset) < 0){
+    return -1;
+  }
+  
+  struct proc *p = myproc();
+  
+  struct file *f = p->ofile[fd];
+  // check that mmap doesn't allow read/write mapping of a
+  // file opened read-only.
+  if (flags & MAP_SHARED) {
+    if (!(f->writable) && (prot & PROT_WRITE)) {
+      printf("File is read-only, but we mmap with write permission and flag. %d vs %p\n",
+            f->writable, prot);
+      return 0xffffffffffffffff;
+    }
+  }
+  
+  uint64 cur_max = p->cur_max;
+  //printf("addr(%p), size(%d), prot(%d), flags(%p), fd(%d), offset(%d). Current Max(%p). MAXVA(%p)\n",
+  //        addr, size, prot, flags, fd, offset, cur_max, MAXVA);
+        
+  uint64 start_addr = PGROUNDDOWN(cur_max - size);
+  
+  struct vm_area_struct *vm = 0;
+  for (int i=0; i<100; i++) {
+    if (p->vma[i].valid == 0) {
+      vm = &p->vma[i];
+      break;
+    }
+  }
+  if (vm) {
+    vm->valid = 1;
+    vm->start_ad = start_addr;
+    vm->end_ad = cur_max;
+    vm->len = size;
+    vm->prot = prot;
+    vm->flags = flags;
+    vm->fd = fd;
+    vm->file = p->ofile[fd];
+    vm->file->ref++;
+
+    // reset process current max available
+    p->cur_max = start_addr;
+
+    printf("mmap is set. max va(%p). VMA start(%p), end(%p). Inode(%d)\n", 
+            MAXVA, vm->start_ad, vm->end_ad, vm->file->ip->inum);
+  } else {
+    return 0xffffffffffffffff;
+  }
+
+  return start_addr;
+}
+
+uint64
+sys_munmap(void) {
+  uint64 addr;
+  int size;
+
+  if(argaddr(0, &addr) < 0 || argint(1, &size) < 0){
+    return -1;
+  }
+  
+  uint64 start_base = PGROUNDDOWN(addr);
+  uint64 end_base = PGROUNDDOWN(addr + size);
+  
+  struct proc *p = myproc();
+  struct vm_area_struct *vm = 0;
+  for (int i=0; i<100; i++) {
+    if (p->vma[i].valid == 1 && 
+        p->vma[i].start_ad <=  start_base &&
+        end_base <= p->vma[i].end_ad) {
+      vm = &p->vma[i];
+      break;
+    }
+  }
+  if (!vm) {
+    printf("Cannot found VMA. start base(%p), end base(%p)\n",
+          start_base, end_base);
+    return -1;
+  }
+  
+  //printf("un-map. start base(%p), end base(%p). vm start(%p), vm end(%p)\n",
+  //       start_base, end_base, vm->start_ad, vm->end_ad);
+
+  if (vm->flags & MAP_SHARED) {
+    printf("....We need to write back file\n");
+    struct file *f = vm->file;
+    begin_op(f->ip->dev);
+    ilock(f->ip);
+    writei(f->ip, 1, vm->start_ad, 0, vm->len);
+    iunlock(f->ip);
+    end_op(f->ip->dev);
+  }
+
+  pte_t *pte;
+  for(int i = start_base; i <= end_base; i+=PGSIZE){
+    if((pte = walk(p->pagetable, i, 0)) == 0) {
+      if(*pte & PTE_V) {
+        uvmunmap(p->pagetable, i, PGSIZE, 0);
+      } else {
+        printf("un-map an invalid page is no-op!\n");
+      }
+    }
+  }
+
+  // 4 cases
+  // first part is un-map
+  if (vm->start_ad == start_base && end_base < vm->end_ad) {
+    vm->start_ad = end_base;
+    vm->len -= size;
+  } else if (vm->start_ad < start_base && end_base == vm->end_ad){
+    // last part is un-map
+    vm->end_ad = start_base - 1;
+    vm->len = size;
+  } else if (vm->start_ad == start_base && vm->end_ad == end_base) {
+    // exact size
+    vm->file->ref--;
+    //vm->file->off = 0;
+    vm->valid = 0;
+    vm->len = 0;
+  } else if (vm->start_ad < start_base && end_base < vm->end_ad) {
+    printf("this is very tricky...need to fix offset\n");
+    // uint64 cache_end = vm->end_ad;
+    // // un-map in the middle
+    // vm->end_ad = start_base;
+    // vm->len = start_base - vm->start_ad;
+    
+    // // find another empty VMA and set the 2nd part.
+    // struct vm_area_struct *vm2 = 0;
+    // for (int i=0; i<100; i++) {
+    //   if (p->vma[i].valid == 1 && 
+    //       p->vma[i].start_ad <=  start_base &&
+    //       end_base <= p->vma[i].end_ad) {
+    //     vm2 = &p->vma[i];
+    //     break;
+    //   }
+    // }
+    // if (vm2) {
+    //   vm2->valid = 1;
+    //   vm2->start_ad = end_base;
+    //   vm2->end_ad = cache_end;
+    //   vm2->len = cache_end - end_base;
+    //   vm2->prot = vm->prot;
+    //   vm2->flags = vm->flags;
+    //   vm2->fd = vm->fd;
+    //   vm2->file = vm->file;
+    //   vm2->file->ref++;
+    // }
+  } else {
+    printf("Err. start base(%p), end base(%p). vm start(%p), vm end(%p)",
+         start_base, end_base, vm->start_ad, vm->end_ad);
+  }
+  //printf("Un-map is done. New VMA start(%p), vm end(%p)\n",
+  //       vm->start_ad, vm->end_ad);
+
+  return size;
+}
+
+void free_all_vma(pagetable_t pagetable, uint64 start, uint64 end) {
+  pte_t *pte;
+  for(int i = start; i <= end; i+=PGSIZE) {
+    if((pte = walk(pagetable, i, 0)) == 0) {
+      if(*pte & PTE_V) {
+        uvmunmap(pagetable, i, PGSIZE, 0);
+      }
+    }
+  }
+}
+
+void copy_vma(struct vm_area_struct *dst, struct vm_area_struct *src) {
+  dst->valid = 1;
+  dst->start_ad = src->start_ad;
+  dst->end_ad = src->end_ad;
+  dst->len = src->len;
+  dst->prot = src->prot;
+  dst->flags = src->flags;
+  dst->fd = src->fd;
+  dst->file = src->file;
+  dst->file->ref++;
 }

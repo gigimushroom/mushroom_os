@@ -87,6 +87,7 @@ usertrap(void)
     if (!vm) {
       printf("VM addr is not lived in VMA, error out.\n");
       p->killed = 1;
+      goto bad;
     }
     
     // allocate a page of physical memory.
@@ -104,10 +105,13 @@ usertrap(void)
     }
     
     // read 4096 bytes of the relevant file into user space.
-    mmap_read(vm->file, (uint64)fault_addr_head, PGSIZE);
+    // IMPORTANT: the read offset is the distance between page_fault_addr
+    // and VMA->start.
+    int distance = fault_addr_head - vm->start_ad;
+    mmap_read(vm->file, fault_addr_head, distance, PGSIZE);
     
-    //printf("PA(%p). VA base(%p), VMA start(%p), end(%p).\n", 
-    //      pa, fault_addr_head, vm->start_ad, vm->end_ad);
+    printf("Trap addr base(%p). VMA start(%p), end(%p).\n", 
+          fault_addr_head, vm->start_ad, vm->end_ad);
           
   } else {
     printf("usertrap(): unexpected scause %p (%s) pid=%d\n", r_scause(), scause_desc(r_scause()), p->pid);
@@ -115,6 +119,7 @@ usertrap(void)
     p->killed = 1;
   }
 
+bad:
   if(p->killed)
     exit(-1);
 

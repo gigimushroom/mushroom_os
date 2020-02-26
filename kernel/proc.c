@@ -267,7 +267,7 @@ fork(void)
   np->sz = p->sz;
 
   np->parent = p;
-
+  
   // copy saved user registers.
   *(np->tf) = *(p->tf);
 
@@ -279,6 +279,30 @@ fork(void)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
+
+  // copy VMA areas
+  for (int i=0; i<100; i++) {
+    if (p->vma[i].valid == 1) {
+      struct vm_area_struct *src = 0;
+      src = &p->vma[i];
+      // find one available from child.
+      struct vm_area_struct *dst = 0;
+      for (int j=0; j<100; j++) {
+        if (np->vma[j].valid == 0) {
+          dst = &np->vma[j];
+          break;
+        }
+      }
+      if (dst) {
+        copy_vma(dst, src);
+        // I feel this is another process, so we clear the offset.
+        dst->file = np->ofile[dst->fd];
+        //dst->file->off = 0;
+        printf("copy VMA to child. start %p. end %p. From %p, %p\n",
+               dst->start_ad, dst->end_ad, src->start_ad, src->end_ad);
+      }
+    }
+  }
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
@@ -335,6 +359,17 @@ exit(int status)
       fileclose(f);
       p->ofile[fd] = 0;
     }
+  }
+
+  // free all VMA areas
+  struct vm_area_struct *vm = 0;
+  for (int i=0; i<100; i++) {
+    if (p->vma[i].valid == 0) {
+      continue;
+    }
+    vm = &p->vma[i];
+    vm->valid = 0;
+    free_all_vma(p->pagetable, vm->start_ad,vm->end_ad);
   }
 
   begin_op(ROOTDEV);
@@ -694,14 +729,17 @@ procdump(void)
   }
 }
 
-void mmap_read(struct file *f, uint64 va, int size) {
+int mmap_read(struct file *f, uint64 va, int off, int size) {
   ilock(f->ip);
   // read to user space VA.
-  int n = readi(f->ip, 1, va, f->off, size);
-  f->off+=n;
+  int n = readi(f->ip, 1, va, off, size);
+  off+=n;
   if (n == 0) {
     printf("what is going on\n");
   }
+  printf("mmap read file offset is now: %d\n", off);
   printf("Current read size %d\n", n);
   iunlock(f->ip);
+
+  return off;
 } 

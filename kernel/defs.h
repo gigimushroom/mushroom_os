@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct vm_area_struct;
 
 // bio.c
 void            binit(void);
@@ -105,7 +106,7 @@ int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 
-void            mmap_read(struct file*, uint64, int);
+int            mmap_read(struct file *f, uint64 va, int off, int size);
 
 
 // swtch.S
@@ -174,6 +175,9 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
+
+void            free_all_vma(pagetable_t, uint64, uint64);
+void            copy_vma(struct vm_area_struct *, struct vm_area_struct *);
 
 // plic.c
 void            plicinit(void);
