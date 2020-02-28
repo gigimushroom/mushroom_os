@@ -68,19 +68,24 @@ usertrap(void)
   } else if (r_scause() == 13 || r_scause() == 15) {
     // 13: Page load fault, 15: Page store fault
     //printf("usertrap(): page fault, scause %d pid=%d\n", r_scause(), p->pid);
-    //printf("            sepc=%p vaddr=%p\n", r_sepc(), r_stval());
+    //printf("            sepc=%p vaddr=%p. Stack base=%p\n", r_sepc(), r_stval(), p->ustack_base);
     
     if (r_stval() >= p->sz) {
       //printf("Kill if page-faults on a virtual memory address higher than any allocated with sbrk().");
       p->killed = 1;
       goto end;
     }
+    
+    if (r_stval() < p->ustack_base) {
+      printf("Access invalid guard page.\n");
+      p->killed = 1;
+      goto end;
+    }
+    
     // round vm page to page boundary
     uint64 vm = PGROUNDDOWN(r_stval());
     
-    // allocate pm
     char *pa = kalloc();
-    //printf("round down to: %d. pa: %p\n", vm, pa);
     if(pa == 0) {
       p->killed = 1;
       goto end;

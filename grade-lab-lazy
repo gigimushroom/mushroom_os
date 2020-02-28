@@ -38,7 +38,7 @@ def test_memtest():
 def test_usertests():
     r.run_qemu(shell_script([
         'usertests'
-    ]), timeout=150)
+    ]), timeout=250)
 
 def usertest_check(testcase, nextcase, output):
     if not re.search(r'\ntest {}: [\s\S]*OK\ntest {}'.format(testcase, nextcase), output):

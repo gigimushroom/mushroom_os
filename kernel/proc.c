@@ -263,6 +263,8 @@ fork(void)
   }
   np->sz = p->sz;
 
+  np->ustack_base = p->ustack_base;
+  
   np->parent = p;
 
   // copy saved user registers.
