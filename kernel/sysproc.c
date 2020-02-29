@@ -108,14 +108,12 @@ uint64 sys_sigalarm(void)
 
   myproc()->ticks = ticks;
   myproc()->handler = addr;
-  //printf("Saving ticks and handler for alarm. Ticks is: %d\n", ticks);
 
   return 0;
 }
 
 uint64 sys_sigreturn(void)
 {
-  //printf("current process tick: %d\n", myproc()->cur_ticks);
   struct proc *p = myproc();
   memmove(p->tf, p->alarm_tf, PGSIZE);
 

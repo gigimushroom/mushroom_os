@@ -28,10 +28,6 @@ struct context {
   uint64 s9;
   uint64 s10;
   uint64 s11;
-  // uint64 fs0;
-  // uint64 fs1;
-  // uint64 fs2;
-  // uint64 fs3;
 };
 
 struct thread {
@@ -84,7 +80,6 @@ thread_schedule(void)
     current_thread = next_thread;
     /* YOUR CODE HERE
      * Invoke thread_switch to switch from t to next_thread:
-     * thread_switch(??, ??);
      */
     thread_switch(&t->context, &current_thread->context);
   } else

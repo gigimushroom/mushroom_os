@@ -80,7 +80,6 @@ usertrap(void)
       p->cur_ticks++;
       p->tf->epc = p->handler;
     }
-
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
