@@ -18,11 +18,6 @@ int main(int argc, char *argv[])
       index++;
   }
   argv_cmd[argc-1] = 0;
-  // int pid = fork();
-  // if (pid == 0) {
-  //     exec(cmd, argv_cmd);
-  // }
-  // wait();
   
   // create a new argv.
   char ch[1];

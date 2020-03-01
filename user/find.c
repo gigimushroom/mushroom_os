@@ -18,7 +18,6 @@ fmtname(char *path)
   if(strlen(p) >= DIRSIZ)
     return p;
   memmove(buf, p, strlen(p));
-  //memset(buf+strlen(p), ' ', DIRSIZ-strlen(p));
   return buf;
 }
 
@@ -57,16 +56,14 @@ ls(char *path, char *filename)
     while(read(fd, &de, sizeof(de)) == sizeof(de)){
       if(de.inum == 0)
         continue;
-      //(xiaying): This mmemory move the filename we just read to p.
+      // This memory moves the filename we just read to p.
       memmove(p, de.name, DIRSIZ);
       p[DIRSIZ] = 0;
       if(stat(buf, &st) < 0) {
         printf("ls: cannot stat %s\n", buf);
         continue;
       }
-      //printf("%s vs %s\n", p, filename);
       if (st.type == T_DIR && *p != '.') {
-          //printf("search directory: %s\n", p);
           ls(p, filename);
       } else if (strcmp(p, filename) == 0) {
         printf("./%s\n", buf);

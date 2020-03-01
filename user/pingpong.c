@@ -7,8 +7,6 @@ main(int argc, char *argv[])
 {
   int p[2];
   char buf[100];
-  //int n;
-  
   pipe(p);
   
   int pid = fork();
