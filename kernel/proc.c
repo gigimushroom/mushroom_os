@@ -734,12 +734,6 @@ int mmap_read(struct file *f, uint64 va, int off, int size) {
   // read to user space VA.
   int n = readi(f->ip, 1, va, off, size);
   off+=n;
-  if (n == 0) {
-    printf("what is going on\n");
-  }
-  printf("mmap read file offset is now: %d\n", off);
-  printf("Current read size %d\n", n);
   iunlock(f->ip);
-
   return off;
 } 
