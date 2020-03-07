@@ -33,7 +33,7 @@ filealloc(void)
 
   acquire(&ftable.lock);
   for(f = ftable.file; f < ftable.file + NFILE; f++){
-    if(f->ref == 0){
+    if(f->ref == 0) {
       f->ref = 1;
       release(&ftable.lock);
       return f;
@@ -68,7 +68,7 @@ fileclose(struct file *f)
     release(&ftable.lock);
     return;
   }
-  ff = *f;
+  ff = *f; // I see, make a copy.
   f->ref = 0;
   f->type = FD_NONE;
   release(&ftable.lock);
@@ -79,6 +79,8 @@ fileclose(struct file *f)
     begin_op(ff.ip->dev);
     iput(ff.ip);
     end_op(ff.ip->dev);
+  } else if (ff.type == FD_SOCK) {
+    sockclose(f);
   }
 }
 
@@ -122,6 +124,8 @@ fileread(struct file *f, uint64 addr, int n)
     if((r = readi(f->ip, 1, addr, f->off, n)) > 0)
       f->off += r;
     iunlock(f->ip);
+  } else if (f->type == FD_SOCK) {
+    r = sockread(f, addr, n);
   } else {
     panic("fileread");
   }
@@ -173,6 +177,8 @@ filewrite(struct file *f, uint64 addr, int n)
       i += r;
     }
     ret = (i == n ? n : -1);
+  } else if (f->type == FD_SOCK) {
+    ret = sockwrite(f, addr, n);
   } else {
     panic("filewrite");
   }

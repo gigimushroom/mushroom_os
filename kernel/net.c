@@ -250,6 +250,7 @@ net_tx_arp(uint16 op, uint8 dmac[ETHADDR_LEN], uint32 dip)
 static void
 net_rx_arp(struct mbuf *m)
 {
+  //printf("We got a arp packet.\n");
   struct arp *arphdr;
   uint8 smac[ETHADDR_LEN];
   uint32 sip, tip;
@@ -285,6 +286,7 @@ done:
 static void
 net_rx_udp(struct mbuf *m, uint16 len, struct ip *iphdr)
 {
+  //printf("We got a udp packet.\n");
   struct udp *udphdr;
   uint32 sip;
   uint16 sport, dport;

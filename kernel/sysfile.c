@@ -67,9 +67,12 @@ sys_connect(void)
     return -1;
   }
 
-  if(sockalloc(&f, raddr, lport, rport) < 0)
+  if(sockalloc(&f, raddr, lport, rport) < 0) {
+    printf("sock alloc failed\n");
     return -1;
+  }
   if((fd=fdalloc(f)) < 0){
+    printf("fd alloc failed\n");
     fileclose(f);
     return -1;
   }
